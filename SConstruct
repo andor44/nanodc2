@@ -107,7 +107,7 @@ if not conf.CheckLibWithHeader('boost_signals', 'boost/signals.hpp', 'c++'):
     print 'Note: You might have the lib but not the headers'
     Exit(1)
 
-if not conf.CheckLibWithHeader('boost_thread-mt', 'boost/thread.hpp', 'c++'):
+if not conf.CheckLibWithHeader('boost_thread', 'boost/thread.hpp', 'c++'):
     print 'Did not find the boost_thread library, exiting!'
     print 'Note: You might have the lib but not the headers'
     Exit(1)
