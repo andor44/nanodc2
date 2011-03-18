@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001-2011 Jacek Sieka, arnetheduck on gmail point com
+ * Copyright (C) 2001-2006 Jacek Sieka, arnetheduck on gmail point com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,97 +22,43 @@
 #include "SSLSocket.h"
 #include "LogManager.h"
 #include "SettingsManager.h"
-#include "format.h"
 
 #include <openssl/err.h>
-
-namespace dcpp {
 
 SSLSocket::SSLSocket(SSL_CTX* context) throw(SocketException) : ctx(context), ssl(0) {
 
 }
 
 void SSLSocket::connect(const string& aIp, uint16_t aPort) throw(SocketException) {
+	Socket::setBlocking(true);
 	Socket::connect(aIp, aPort);
 
-	waitConnected(0);
-}
+	if(ssl)
+		SSL_free(ssl);
 
-bool SSLSocket::waitConnected(uint32_t millis) {
-	if(!ssl) {
-		if(!Socket::waitConnected(millis)) {
-			return false;
-		}
-		ssl.reset(SSL_new(ctx));
-		if(!ssl)
-			checkSSL(-1);
+	ssl = SSL_new(ctx);
+	if(!ssl)
+		checkSSL(-1);
 
-		checkSSL(SSL_set_fd(ssl, sock));
-	}
-
-	if(SSL_is_init_finished(ssl)) {
-		return true;
-	}
-
-	while(true) {
-		int ret = ssl->server?SSL_accept(ssl):SSL_connect(ssl);
-		if(ret == 1) {
-			dcdebug("Connected to SSL server using %s as %s\n", SSL_get_cipher(ssl), ssl->server?"server":"client");
-			return true;
-		}
-		if(!waitWant(ret, millis)) {
-			return false;
-		}
-	}
+	checkSSL(SSL_set_fd(ssl, sock));
+	checkSSL(SSL_connect(ssl));
+	dcdebug("Connected to SSL server using %s\n", SSL_get_cipher(ssl));
+	Socket::setBlocking(false);
 }
 
 void SSLSocket::accept(const Socket& listeningSocket) throw(SocketException) {
 	Socket::accept(listeningSocket);
 
-	waitAccepted(0);
-}
+	if(ssl)
+		SSL_free(ssl);
 
-bool SSLSocket::waitAccepted(uint32_t millis) {
-	if(!ssl) {
-		if(!Socket::waitAccepted(millis)) {
-			return false;
-		}
-		ssl.reset(SSL_new(ctx));
-		if(!ssl)
-			checkSSL(-1);
+	ssl = SSL_new(ctx);
+	if(!ssl)
+		checkSSL(-1);
 
-		checkSSL(SSL_set_fd(ssl, sock));
-	}
-
-	if(SSL_is_init_finished(ssl)) {
-		return true;
-	}
-
-	while(true) {
-		int ret = SSL_accept(ssl);
-		if(ret == 1) {
-			dcdebug("Connected to SSL client using %s\n", SSL_get_cipher(ssl));
-			return true;
-		}
-		if(!waitWant(ret, millis)) {
-			return false;
-		}
-	}
-}
-
-bool SSLSocket::waitWant(int ret, uint32_t millis) {
-	int err = SSL_get_error(ssl, ret);
-	switch(err) {
-	case SSL_ERROR_WANT_READ:
-		return wait(millis, Socket::WAIT_READ) == WAIT_READ;
-	case SSL_ERROR_WANT_WRITE:
-		return wait(millis, Socket::WAIT_WRITE) == WAIT_WRITE;
-	// Check if this is a fatal error...
-	default: checkSSL(ret);
-	}
-	dcdebug("SSL: Unexpected fallthrough");
-	// There was no error?
-	return true;
+	checkSSL(SSL_set_fd(ssl, sock));
+	checkSSL(SSL_accept(ssl));
+	dcdebug("Connected to SSL client using %s\n", SSL_get_cipher(ssl));
 }
 
 int SSLSocket::read(void* aBuffer, int aBufLen) throw(SocketException) {
@@ -123,7 +69,7 @@ int SSLSocket::read(void* aBuffer, int aBufLen) throw(SocketException) {
 
 	if(len > 0) {
 		stats.totalDown += len;
-		//dcdebug("In(s): %.*s\n", len, (char*)aBuffer);
+		dcdebug("In(s): %.*s\n", len, (char*)aBuffer);
 	}
 	return len;
 }
@@ -135,7 +81,7 @@ int SSLSocket::write(const void* aBuffer, int aLen) throw(SocketException) {
 	int ret = checkSSL(SSL_write(ssl, aBuffer, aLen));
 	if(ret > 0) {
 		stats.totalUp += ret;
-		//dcdebug("Out(s): %.*s\n", ret, (char*)aBuffer);
+		dcdebug("Out(s): %.*s\n", ret, (char*)aBuffer);
 	}
 	return ret;
 }
@@ -146,19 +92,18 @@ int SSLSocket::checkSSL(int ret) throw(SocketException) {
 	}
 	if(ret <= 0) {
 		int err = SSL_get_error(ssl, ret);
-		switch(err) {
+		switch(SSL_get_error(ssl, ret)) {
 			case SSL_ERROR_NONE:		// Fallthrough - YaSSL doesn't for example return an openssl compatible error on recv fail
 			case SSL_ERROR_WANT_READ:	// Fallthrough
 			case SSL_ERROR_WANT_WRITE:
 				return -1;
-			case SSL_ERROR_ZERO_RETURN:
-				throw SocketException(_("Connection closed"));
 			default:
 				{
-					ssl.reset();
+					SSL_free(ssl);
+					ssl = 0;
 					// @todo replace 80 with MAX_ERROR_SZ or whatever's appropriate for yaSSL in some nice way...
 					char errbuf[80];
-					throw SSLSocketException(str(F_("SSL Error: %1% (%2%, %3%)") % ERR_error_string(err, errbuf) % ret % err));
+					throw SocketException(string("SSL Error: ") + ERR_error_string(err, errbuf) + " (" + Util::toString(ret) + ", " + Util::toString(err) + ")"); // @todo Translate
 				}
 		}
 	}
@@ -180,33 +125,15 @@ bool SSLSocket::isTrusted() const throw() {
 		return false;
 	}
 
-	if(SSL_get_verify_result(ssl) != X509_V_OK) {
+	if(SSL_get_verify_result(ssl) != SSL_ERROR_NONE) {
 		return false;
 	}
 
-	X509* cert = SSL_get_peer_certificate(ssl);
-	if(!cert) {
+	if(!SSL_get_peer_certificate(ssl)) {
 		return false;
 	}
-	X509_free(cert);
+
 	return true;
-}
-
-std::string SSLSocket::getCipherName() const throw() {
-	if(!ssl)
-		return Util::emptyString;
-
-	return SSL_get_cipher_name(ssl);
-}
-
-vector<uint8_t> SSLSocket::getKeyprint() const throw() {
-	if(!ssl)
-		return vector<uint8_t>();
-	X509* x509 = SSL_get_peer_certificate(ssl);
-	if(!x509)
-		return vector<uint8_t>();
-
-	return ssl::X509_digest(x509, EVP_sha256());
 }
 
 void SSLSocket::shutdown() throw() {
@@ -216,10 +143,9 @@ void SSLSocket::shutdown() throw() {
 
 void SSLSocket::close() throw() {
 	if(ssl) {
-		ssl.reset();
+		SSL_free(ssl);
+		ssl = 0;
 	}
 	Socket::shutdown();
 	Socket::close();
 }
-
-} // namespace dcpp

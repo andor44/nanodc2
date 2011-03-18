@@ -1,4 +1,4 @@
-file /home/sebastian/aur/nanodc2/SConstruct,line 40:
+file /home/andor/projects/nanodc2/SConstruct,line 40:
 	Configure(confdir = .sconf_temp)
 scons: Configure: Checking for g++ >= 4.0...
 scons: Configure: (cached) yes
@@ -165,7 +165,7 @@ scons: Configure: The original builder output was:
   |
 scons: Configure: (cached) yes
 
-scons: Configure: Checking for C++ library boost_thread-mt... 
+scons: Configure: Checking for C++ library boost_thread... 
 scons: Configure: ".sconf_temp/conftest_10.cpp" is up to date.
 scons: Configure: The original builder output was:
   |.sconf_temp/conftest_10.cpp <-
@@ -186,7 +186,7 @@ scons: Configure: The original builder output was:
   |
 scons: Configure: ".sconf_temp/conftest_10" is up to date.
 scons: Configure: The original builder output was:
-  |g++ -o .sconf_temp/conftest_10 .sconf_temp/conftest_10.o -lncursesw -lpthread -lz -lbz2 -lboost_signals -lboost_thread-mt
+  |g++ -o .sconf_temp/conftest_10 .sconf_temp/conftest_10.o -lncursesw -lpthread -lz -lbz2 -lboost_signals -lboost_thread
   |
 scons: Configure: (cached) yes
 
@@ -211,7 +211,7 @@ scons: Configure: The original builder output was:
   |
 scons: Configure: ".sconf_temp/conftest_11" is up to date.
 scons: Configure: The original builder output was:
-  |g++ -o .sconf_temp/conftest_11 .sconf_temp/conftest_11.o -lncursesw -lpthread -lz -lbz2 -lboost_signals -lboost_thread-mt -lssl
+  |g++ -o .sconf_temp/conftest_11 .sconf_temp/conftest_11.o -lncursesw -lpthread -lz -lbz2 -lboost_signals -lboost_thread -lssl
   |
 scons: Configure: (cached) yes
 
@@ -245,7 +245,7 @@ scons: Configure: The original builder output was:
   |
 scons: Configure: ".sconf_temp/conftest_12" is up to date.
 scons: Configure: The original builder output was:
-  |gcc -o .sconf_temp/conftest_12 .sconf_temp/conftest_12.o -lncursesw -lpthread -lz -lbz2 -lboost_signals -lboost_thread-mt -lssl
+  |gcc -o .sconf_temp/conftest_12 .sconf_temp/conftest_12.o -lncursesw -lpthread -lz -lbz2 -lboost_signals -lboost_thread -lssl
   |
 scons: Configure: (cached) yes
 

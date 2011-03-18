@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001-2011 Jacek Sieka, arnetheduck on gmail point com
+ * Copyright (C) 2001-2006 Jacek Sieka, arnetheduck on gmail point com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef DCPLUSPLUS_DCPP_SSLSOCKET_H
-#define DCPLUSPLUS_DCPP_SSLSOCKET_H
+#if !defined(SSLSOCKET_H)
+#define SSLSOCKET_H
 
 #include "Socket.h"
 #include "Singleton.h"
 
-#include "SSL.h"
+#include <openssl/ssl.h>
 
 #ifndef SSL_SUCCESS
 #define SSL_SUCCESS 1
@@ -31,19 +31,6 @@
 #ifdef YASSL_VERSION
 using namespace yaSSL;
 #endif
-
-namespace dcpp {
-
-class SSLSocketException : public SocketException {
-public:
-#ifdef _DEBUG
-	SSLSocketException(const string& aError) throw() : SocketException("SSLSocketException: " + aError) { }
-#else //_DEBUG
-	SSLSocketException(const string& aError) throw() : SocketException(aError) { }
-#endif // _DEBUG
-
-	virtual ~SSLSocketException() throw() { }
-};
 
 class CryptoManager;
 
@@ -61,12 +48,6 @@ public:
 
 	virtual bool isSecure() const throw() { return true; }
 	virtual bool isTrusted() const throw();
-	virtual std::string getCipherName() const throw();
-	virtual vector<uint8_t> getKeyprint() const throw();
-
-	virtual bool waitConnected(uint32_t millis);
-	virtual bool waitAccepted(uint32_t millis);
-
 
 private:
 	friend class CryptoManager;
@@ -76,12 +57,9 @@ private:
 	SSLSocket& operator=(const SSLSocket&);
 
 	SSL_CTX* ctx;
-	ssl::SSL ssl;
+	SSL* ssl;
 
 	int checkSSL(int ret) throw(SocketException);
-	bool waitWant(int ret, uint32_t millis);
 };
-
-} // namespace dcpp
 
 #endif // SSLSOCKET_H
