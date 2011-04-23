@@ -30,6 +30,8 @@
 #include <core/events.h>
 #include <core/log.h>
 #include <utils/utils.h>
+#include <string>
+#include <iostream>s
 
 namespace modules {
 
@@ -124,6 +126,7 @@ public:
     /** "command dcset" event handler. */
     void set()
     {
+        /*
         bool set = events::args() > 1;
         std::string var = events::args() > 0 ? events::arg<std::string>(0) : "";
         std::string val = set ? events::arg<std::string>(1) : "";
@@ -148,8 +151,71 @@ public:
         else {
             core::Log::get()->log(var + " = %21" + val);
         }
-
-
+        */
+        //core::Log::get()->log("Num of args: ");
+        //core::Log::get()->log(to_string(events::args()));
+        //core::Log::get()->log(events::arg<std::string>(0));
+        //core::Log::get()->log(events::arg<std::string>(1));
+        
+        // XXX: the old method above is derped, it's not auto seperated
+        
+        if (events::arg<std::string>(0).length() <= 0)
+        {
+            core::Log::get()->log("No parameters given.");
+            return;
+        }
+        
+        std::string key = "null";
+        std::string value = "null";
+        // gonna copy it meh, it's not like that extra ~1kbyte matters
+        std::string args = events::arg<std::string>(0); 
+        
+        //args.replace(str.begin(),str.end(),
+        
+        if (args.find("=") == string::npos)
+        {
+            int num = find_setting(stringSettings, args);
+            if (num == 0)
+                num = find_setting(intSettings, args);
+            if (num == 0)
+            {
+                core::Log::get()->log("Setting specified not found");
+                return;
+            }
+            value = utils::to_string(SettingsManager::getInstance()->get((SettingsManager::IntSetting)num)); 
+            core::Log::get()->log(args + " = %21" + value);
+            return;
+        }
+        else
+        {
+            key = args.substr(0, args.find("="));
+            value = args.substr(args.find("=") + 1, args.length());
+            
+            core::Log::get()->log(value + " ! ASSIGNED TO ! " + key);
+            
+            bool intSetting = false;
+            
+            int num = find_setting(stringSettings, key);
+            if (num == 0)
+            {
+                num = find_setting(intSettings, key);
+                intSetting = true;
+            }
+            if (num == 0)
+            {
+                core::Log::get()->log("Setting specified not found");
+                return;
+            }
+            
+            if (intSetting)
+            {
+                SettingsManager::getInstance()->set((SettingsManager::IntSetting)num, value);
+            }
+            else
+            {
+                SettingsManager::getInstance()->set((SettingsManager::StrSetting)num , value);
+            }
+        }
     }
 };
 
